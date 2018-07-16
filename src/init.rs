@@ -87,6 +87,7 @@ where
 pub struct AdapterByNameRe(#[cfg_attr(feature = "serde", serde(with = "::serde_regex"))] Regex);
 
 /// Choose adapter by name matching regex.
+#[cfg(feature = "regex")]
 pub fn adapter_by_name_regex(name: Regex) -> AdapterByNameRe {
     AdapterByNameRe(name)
 }

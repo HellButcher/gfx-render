@@ -50,5 +50,7 @@ mod upload;
 
 pub use backend::BackendEx;
 pub use factory::{Buffer, Factory, Image, Item};
-pub use init::{init, Config, MemoryConfig, AdapterPicker, QueuesPicker, FirstAdapter, adapter_picker, adapter_by_name, adapter_by_name_regex, queue_picker};
+pub use init::{init, Config, MemoryConfig, AdapterPicker, QueuesPicker, FirstAdapter, adapter_picker, adapter_by_name, queue_picker};
+#[cfg(feature = "regex")]
+pub use init::adapter_by_name_regex;
 pub use renderer::{Render, Renderer, TargetId};
