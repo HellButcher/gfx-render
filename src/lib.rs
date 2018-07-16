@@ -40,6 +40,9 @@ pub extern crate gfx_backend_dx12 as dx12;
 #[cfg(feature = "gfx-backend-metal")]
 pub extern crate gfx_backend_metal as metal;
 
+#[cfg(feature = "gfx-backend-empty")]
+pub extern crate gfx_backend_empty as backend_empty;
+
 mod backend;
 mod escape;
 mod factory;
