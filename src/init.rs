@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use hal::{
     adapter::{Adapter, PhysicalDevice}, error::DeviceCreationError, queue::QueueFamily, Backend,
+    window::Surface,
     Instance,
 };
 
@@ -63,7 +64,7 @@ pub struct AdapterByName<T>(T);
 /// Choose adapter by name.
 pub fn adapter_by_name<T>(name: T) -> AdapterByName<T>
 where
-    T: PartialEq<String>
+    T: PartialEq<String>,
 {
     AdapterByName(name)
 }
@@ -102,6 +103,40 @@ where
             .into_iter()
             .find(|adapter| self.0.is_match(&adapter.info.name))
     }
+}
+
+/// `AdapterPicker` which picks the first  adapter supported by the given surface.
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct AdapterBySurface<B: Backend>(B::Surface);
+
+impl<B> AdapterPicker<B> for AdapterBySurface<B>
+where
+    B: Backend,
+{
+    #[inline]
+    fn pick_adapter(self, mut adapters: Vec<Adapter<B>>) -> Option<Adapter<B>> {
+        use hal::{
+            queue::{Graphics, QueueFamily}, Capability, Surface,
+        };
+        adapters
+            .drain(..)
+            .filter(|a| {
+                a.queue_families.iter().any(|f| {
+                    Graphics::supported_by(f.queue_type()) && self.0.supports_queue_family(f)
+                })
+            })
+            .next()
+    }
+}
+
+/// Choose adapter by surface support.
+pub fn adapter_by_surface<B,S>(surface: S) -> AdapterBySurface<B>
+where
+    B: Backend<Surface=S>,
+    S: Surface<B>,
+{
+    AdapterBySurface(surface)
 }
 
 /// Trait for picking queue families among available.
@@ -188,7 +223,11 @@ pub enum InitError {
 
 /// Init chosen backend.
 /// Creates `Factory` and `Renderer` instances.
-pub fn init<B, R, A, Q>(adapter_picker: A, queues_picker: Q, memory: MemoryConfig) -> Result<(Factory<B>, Renderer<B, R>), InitError>
+pub fn init<B, R, A, Q>(
+    adapter_picker: A,
+    queues_picker: Q,
+    memory: MemoryConfig,
+) -> Result<(Factory<B>, Renderer<B, R>), InitError>
 where
     B: BackendEx,
     R: Send + Sync + 'static,
@@ -196,6 +235,24 @@ where
     Q: QueuesPicker<B>,
 {
     let instance = B::init();
+    init_with_instance(instance, adapter_picker, queues_picker, memory)
+}
+
+/// Init chosen backend with the given instance.
+/// Creates `Factory` and `Renderer` instances.
+pub fn init_with_instance<B, I, R, A, Q>(
+    instance: I,
+    adapter_picker: A,
+    queues_picker: Q,
+    memory: MemoryConfig,
+) -> Result<(Factory<B>, Renderer<B, R>), InitError>
+where
+    B: BackendEx<Instance=I>,
+    I: Instance<Backend=B>,
+    R: Send + Sync + 'static,
+    A: AdapterPicker<B>,
+    Q: QueuesPicker<B>,
+{
     let adapter = adapter_picker
         .pick_adapter(instance.enumerate_adapters())
         .ok_or(InitError::AdapterNotChosen)?;
